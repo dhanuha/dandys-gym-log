@@ -9,10 +9,19 @@ function env() {
   return { id, secret, base, redirect: base + "/.netlify/functions/whoop-callback" };
 }
 
-// Netlify Blobs store for the single user's tokens
+// Netlify Blobs store for the single user's tokens.
+// Tries the automatic site context first; falls back to explicit siteID+token
+// (set NETLIFY_SITE_ID and NETLIFY_BLOBS_TOKEN env vars) when the context is missing.
 async function store() {
   const { getStore } = await import("@netlify/blobs");
-  return getStore("whoop");
+  try {
+    return getStore("whoop");
+  } catch (e) {
+    const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+    const token  = process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY_API_TOKEN;
+    if (siteID && token) return getStore({ name: "whoop", siteID, token });
+    throw e;
+  }
 }
 async function saveTokens(t) {
   const s = await store();
